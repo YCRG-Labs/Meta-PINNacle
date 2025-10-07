@@ -1,6 +1,6 @@
 # Meta-Learning for Physics-Informed Neural Networks: Few-Shot Adaptation Framework
 
-This repository contains the implementation for [Meta-Learning for Physics-Informed Neural Networks: A Comprehensive Framework for Few-Shot Adaptation in Parametric Partial Differential Equations](paper/CMAME_MetaLearning_PINNs_Paper.pdf). Our paper is submitted to Computer Methods in Applied Mechanics and Engineering (CMAME).
+This repository contains the implementation for [Meta-Learning for Physics-Informed Neural Networks: A Comprehensive Framework for Few-Shot Adaptation in Parametric Partial Differential Equations](paper\paper.tex). Our paper is submitted to Computer Methods in Applied Mechanics and Engineering (CMAME).
 
 <p align="center">
   <img width="80%" src="resources/meta-pinnacle.png"/>
