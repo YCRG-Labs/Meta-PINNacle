@@ -1,72 +1,159 @@
-# PINNacle: A Comprehensive Benchmark of Physics-Informed Neural Networks for Solving PDEs
+# Meta-Learning for Physics-Informed Neural Networks: Few-Shot Adaptation Framework
 
-This repository is our codebase for [PINNacle: A Comprehensive Benchmark of Physics-Informed Neural Networks for Solving PDEs](https://arxiv.org/abs/2306.08827). Our paper is currently under review. We will provide more detailed guide soon.
+This repository contains the implementation for [Meta-Learning for Physics-Informed Neural Networks: A Comprehensive Framework for Few-Shot Adaptation in Parametric Partial Differential Equations](paper/CMAME_MetaLearning_PINNs_Paper.pdf). Our paper is submitted to Computer Methods in Applied Mechanics and Engineering (CMAME).
 
 <p align="center">
-  <img width="80%" src="https://raw.githubusercontent.com/i207M/PINNacle/master/resources/pinnacle.png"/>
+  <img width="80%" src="resources/meta-pinnacle.png"/>
 </p>
-
 
 ### Implemented Methods
 
-This benchmark paper implements the following variants and create a new challenging dataset to compare them,
+This framework implements four novel meta-learning architectures for rapid PDE adaptation:
 
-| Method                                                       | Type                                         |
-| ------------------------------------------------------------ | -------------------------------------------- |
-| [PINN](https://www.sciencedirect.com/science/article/abs/pii/S0021999118307125) | Vanilla PINNs                                |
-| PINNs(Adam+L-BFGS)                                           | Vanilla PINNs                                |
-| [PINN-LRA](https://arxiv.org/abs/2001.04536)                 | Loss reweighting                             |
-| [PINN-NTK](https://arxiv.org/abs/2007.14527)                 | Loss reweighting                             |
-| [RAR](https://arxiv.org/abs/2207.10289)                      | Collocation points resampling                |
-| [MultiAdam](https://arxiv.org/abs/2306.02816)                | New optimizer                                |
-| [gPINN](https://arxiv.org/abs/2111.02801)                   | New loss functions (regularization terms)    |
-| [hp-VPINN](https://arxiv.org/abs/2003.05385)                | New loss functions (variational formulation) |
-| [LAAF](https://royalsocietypublishing.org/doi/10.1098/rspa.2020.0334) | New architecture (activation)                |
-| [GAAF](https://arxiv.org/abs/1906.01170)                     | New architecture (activation)                |
-| [FBPINN](https://arxiv.org/abs/2107.07871)                   | New architecture (domain decomposition)      |
+| Method                         | Type                      | Key Features                                   |
+| ------------------------------ | ------------------------- | ---------------------------------------------- |
+| **MetaPINN**                   | MAML-based Meta-Learning  | Gradient-based adaptation, fast convergence    |
+| **PhysicsInformedMetaLearner** | Advanced Meta-Learning    | Adaptive constraint balancing, 96.87% accuracy |
+| **TransferLearningPINN**       | Transfer Learning         | Pre-training strategy, domain adaptation       |
+| **DistributedMetaPINN**        | Distributed Meta-Learning | Multi-GPU scaling, 85% parallel efficiency     |
+| **StandardPINN**               | Baseline                  | Traditional PINN for comparison                |
 
-See these references for more details,
+### Evaluated PDE Families
 
-- [Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations](https://www.sciencedirect.com/science/article/abs/pii/S0021999118307125)
-- [Understanding and mitigating gradient pathologies in physics-informed neural networks](https://arxiv.org/abs/2001.04536)
-- [When and why PINNs fail to train: A neural tangent kernel perspective](https://arxiv.org/abs/2007.14527)
-- [A comprehensive study of non-adaptive and residual-based adaptive sampling for physics-informed neural networks](https://arxiv.org/abs/2207.10289)
-- [MultiAdam: Parameter-wise Scale-invariant Optimizer for Multiscale Training of Physics-informed Neural Networks](https://arxiv.org/abs/2306.02816)
-- [Gradient-enhanced physics-informed neural networks for forward and inverse PDE problems](https://arxiv.org/abs/2111.02801)
-- [Sobolev Training for Physics Informed Neural Networks](https://arxiv.org/abs/2101.08932)
-- [Variational Physics-Informed Neural Networks For Solving Partial Differential Equations](https://arxiv.org/abs/1912.00873)
-- [hp-VPINNs: Variational Physics-Informed Neural Networks With Domain Decomposition](https://arxiv.org/abs/2003.05385)
-- [Locally adaptive activation functions with slope recovery for deep and physics-informed neural networks](https://royalsocietypublishing.org/doi/10.1098/rspa.2020.0334)
-- [Adaptive activation functions accelerate convergence in deep and physics-informed neural networks](https://arxiv.org/abs/1906.01170)
-- [Finite Basis Physics-Informed Neural Networks (FBPINNs): a scalable domain decomposition approach for solving differential equations](https://arxiv.org/abs/2107.07871)
+Our comprehensive benchmark evaluates across 7 parametric PDE families:
 
+- **Heat Equation (2D)**: Diffusion processes with varying coefficients
+- **Burgers Equation (1D/2D)**: Nonlinear convection-diffusion dynamics
+- **Poisson Equation (2D)**: Elliptic problems with parameter variations
+- **Navier-Stokes (2D)**: Fluid dynamics with Reynolds number variations
+- **Gray-Scott**: Reaction-diffusion systems with parameter sweeps
+- **Kuramoto-Sivashinsky**: Chaotic spatiotemporal dynamics
 
+## Key Results
+
+| Metric                       | Standard PINN | Meta-Learning | Improvement         |
+| ---------------------------- | ------------- | ------------- | ------------------- |
+| **Accuracy**                 | 83.94%        | 96.87%        | +12.93%             |
+| **Adaptation Time**          | 460s          | 70s           | 6.5× faster         |
+| **Statistical Significance** | -             | 92.9%         | 280 comparisons     |
+| **Best Performance**         | -             | 98.99%        | Burgers 1D, 25-shot |
+
+### Performance Highlights
+
+- **🎯 Superior Accuracy**: PhysicsInformedMetaLearner achieves 96.87% accuracy vs 83.94% for standard PINNs
+- **⚡ Rapid Adaptation**: 6.5× speedup in adaptation time (70s vs 460s)
+- **📊 Statistical Rigor**: 92.9% significance rate across 280 statistical comparisons
+- **🚀 Scalability**: DistributedMetaPINN achieves 85% parallel efficiency on multi-GPU systems
+- **💰 Cost Effectiveness**: Break-even point at 13-16 tasks, up to 8.49× speedup factor
 
 ## Installation
 
 ```shell
-# conda create -n pinnacle python=3.9
-# conda activate pinnacle  # To keep Python environments separate
-git clone https://github.com/i207M/PINNacle.git --depth 1
-cd PINNacle
+# Create conda environment (recommended)
+conda create -n meta-pinn python=3.9
+conda activate meta-pinn
+
+# Clone repository
+git clone https://github.com/YCRG-Labs/Meta-PINNacle.git
+cd meta-pinnacle
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
 ## Usage
 
-[📄 Full Documention](https://pinnacle-docs.vercel.app/)
+### Quick Start
 
-Run all 20 cases with default settings:
+Run the complete evaluation pipeline:
 
 ```shell
-python benchmark.py [--name EXP_NAME] [--seed SEED] [--device DEVICE]
+python run_full_pipeline.py
 ```
+
+### Individual Components
+
+```shell
+# Run specific meta-learning model
+python -m src.meta_learning.meta_pinn --model PhysicsInformedMetaLearner --pde heat2d
+
+# Evaluate few-shot performance
+python -m src.meta_learning.few_shot_evaluator --shots 1,5,10,25
+
+# Generate publication figures
+python -m src.meta_learning.visualization_reporter --output paper/
+```
+
+### Configuration
+
+Customize experiments via configuration files:
+
+```python
+# src/meta_learning/config.py
+META_LEARNING_CONFIG = {
+    'inner_lr': 0.01,
+    'outer_lr': 0.001,
+    'adaptation_steps': 5,
+    'meta_batch_size': 4
+}
+```
+
+## Project Structure
+
+```
+meta-learning-pinns/
+├── src/
+│   ├── meta_learning/          # Core meta-learning implementations
+│   │   ├── meta_pinn.py       # MAML-based MetaPINN
+│   │   ├── physics_informed_meta_learner.py  # Advanced meta-learner
+│   │   ├── transfer_learning_pinn.py         # Transfer learning approach
+│   │   └── distributed_meta_pinn.py          # Distributed training
+│   ├── pde/                   # Parametric PDE implementations
+│   └── utils/                 # Utilities and helpers
+├── tests/                     # Comprehensive test suite
+├── paper/                     # Research paper and figures
+├── runs/                      # Experimental results
+└── run_full_pipeline.py       # Main execution script
+```
+
+## Benchmarking Results
+
+### Model Performance Rankings
+
+1. **PhysicsInformedMetaLearner**: 96.87% (Best overall accuracy)
+2. **DistributedMetaPINN**: 96.11% (Best scalability)
+3. **MetaPINN**: 95.74% (Solid MAML baseline)
+4. **TransferLearningPINN**: 93.74% (Traditional approach)
+5. **StandardPINN**: 83.94% (Baseline)
+
+### Few-Shot Learning Progression
+
+| Shots | MetaPINN | PhysicsInformed | Transfer | Distributed | Standard |
+| ----- | -------- | --------------- | -------- | ----------- | -------- |
+| 1     | 89.2%    | 91.5%           | 87.8%    | 90.9%       | 76.3%    |
+| 5     | 93.8%    | 95.1%           | 91.2%    | 94.7%       | 81.7%    |
+| 10    | 95.1%    | 96.4%           | 92.9%    | 95.8%       | 82.9%    |
+| 25    | 95.7%    | 96.9%           | 93.7%    | 96.1%       | 83.9%    |
 
 ## Citation
 
-If you find out work useful, please cite our paper at:
+If you find our work useful, please cite our paper:
 
+```bibtex
+@article{metalearning_pinns_2025,
+  title={Meta-Learning for Physics-Informed Neural Networks: A Comprehensive Framework for Few-Shot Adaptation in Parametric Partial Differential Equations},
+  author={Brandon Yee and Wilson Collins and Ben Pellegrini and Caden Wang},
+  journal={Computer Methods in Applied Mechanics and Engineering},
+  year={2025},
+  note={Under Review}
+}
 ```
+
+## Acknowledgments
+
+This work builds upon the excellent [PINNacle](https://github.com/i207M/PINNacle) framework:
+
+```bibtex
 @article{hao2023pinnacle,
   title={PINNacle: A Comprehensive Benchmark of Physics-Informed Neural Networks for Solving PDEs},
   author={Hao, Zhongkai and Yao, Jiachen and Su, Chang and Su, Hang and Wang, Ziao and Lu, Fanzhi and Xia, Zeyu and Zhang, Yichi and Liu, Songming and Lu, Lu and others},
@@ -75,12 +162,15 @@ If you find out work useful, please cite our paper at:
 }
 ```
 
-We also suggest you have a look at the survey paper ([Physics-Informed Machine Learning: A Survey on Problems, Methods and Applications](https://arxiv.org/abs/2211.08064)) about PINNs, neural operators, and other paradigms of PIML.
-```
-@article{hao2022physics,
-  title={Physics-informed machine learning: A survey on problems, methods and applications},
-  author={Hao, Zhongkai and Liu, Songming and Zhang, Yichi and Ying, Chengyang and Feng, Yao and Su, Hang and Zhu, Jun},
-  journal={arXiv preprint arXiv:2211.08064},
-  year={2022}
-}
-```
+## Authors
+
+**Brandon Yee, Wilson Collins, Ben Pellegrini, Caden Wang**
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+**Last Updated**: October 2025
+**Contact**: b.yee@ycrg-labs.org
