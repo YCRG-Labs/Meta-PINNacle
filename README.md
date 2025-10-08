@@ -81,7 +81,7 @@ python -m src.meta_learning.meta_pinn --model PhysicsInformedMetaLearner --pde h
 python -m src.meta_learning.few_shot_evaluator --shots 1,5,10,25
 
 # Generate publication figures
-python -m src.meta_learning.visualization_reporter --output paper/
+# Note: Visualization functionality has been removed
 ```
 
 ### Configuration

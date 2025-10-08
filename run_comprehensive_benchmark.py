@@ -42,7 +42,6 @@ from meta_benchmark import (
 from src.meta_learning.evaluation_framework import MetaLearningEvaluationFramework
 from src.meta_learning.statistical_analyzer import StatisticalAnalyzer
 from src.meta_learning.computational_analyzer import ComputationalAnalyzer
-from src.meta_learning.visualization_reporter import VisualizationReporter
 from src.utils.meta_logging import MetaLearningLogger
 
 

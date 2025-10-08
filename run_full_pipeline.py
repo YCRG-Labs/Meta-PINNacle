@@ -31,7 +31,6 @@ sys.path.append('src')
 # from meta_learning.evaluation_framework import MetaLearningEvaluationFramework
 # from meta_learning.computational_analyzer import ComputationalAnalyzer
 # from meta_learning.statistical_analyzer import StatisticalAnalyzer
-# from meta_learning.visualization_reporter import VisualizationReporter
 
 
 class FullPipeline:
@@ -60,7 +59,6 @@ class FullPipeline:
         self.evaluation_framework = None
         self.computational_analyzer = None
         self.statistical_analyzer = None
-        self.visualization_reporter = None
         
         # Results storage
         self.benchmark_results = None

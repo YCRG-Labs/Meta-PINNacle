@@ -14,16 +14,52 @@ import os
 import logging
 from pathlib import Path
 
-from src.utils.plot import plot_lines, plot_heatmap
-from src.meta_learning.few_shot_evaluator import FewShotResults
-from src.meta_learning.statistical_analyzer import StatisticalComparison
-from src.meta_learning.computational_analyzer import ComputationalAnalyzer
+try:
+    from src.utils.plot import plot_lines, plot_heatmap
+except ImportError:
+    # Fallback if plot utilities not available
+    plot_lines = None
+    plot_heatmap = None
+
+try:
+    from src.meta_learning.few_shot_evaluator import FewShotResults
+    from src.meta_learning.statistical_analyzer import StatisticalComparison, CorrectedStatisticalResult
+    from src.meta_learning.computational_analyzer import ComputationalAnalyzer
+    from src.utils.profiling import TimingProfiler, MethodTimingResults
+except ImportError:
+    # Define minimal classes for standalone usage
+    class FewShotResults:
+        def __init__(self):
+            self.shot_results = {}
+    
+    class StatisticalComparison:
+        def __init__(self):
+            self.shot_comparisons = {}
+    
+    class CorrectedStatisticalResult:
+        pass
+    
+    class ComputationalAnalyzer:
+        pass
+    
+    class TimingProfiler:
+        pass
+    
+    class MethodTimingResults:
+        def __init__(self):
+            self.total_time = 0
+            self.adaptation_time = 0
+            self.inference_time = 0
 
 logger = logging.getLogger(__name__)
 
 # Set publication-ready style
-plt.style.use('seaborn-v0_8-whitegrid')
-sns.set_palette("husl")
+try:
+    plt.style.use('seaborn-v0_8-whitegrid')
+    sns.set_palette("husl")
+except:
+    # Fallback if seaborn not available
+    plt.style.use('default')
 
 
 class VisualizationReporter:
@@ -90,7 +126,7 @@ class VisualizationReporter:
             })
     
     def plot_few_shot_performance_curves(self, 
-                                       results_dict: Dict[str, FewShotResults],
+                                       results_dict: Dict[str, Any],
                                        metric: str = "mean_l2_error",
                                        title: str = None,
                                        save_name: str = "few_shot_performance") -> str:
@@ -113,15 +149,20 @@ class VisualizationReporter:
         # Extract data for plotting
         shots = None
         for model_name, results in results_dict.items():
+            if hasattr(results, 'shot_results'):
+                shot_results = results.shot_results
+            else:
+                shot_results = results
+            
             if shots is None:
-                shots = sorted(results.shot_results.keys())
+                shots = sorted(shot_results.keys())
             
             values = []
             errors = []
             
             for K in shots:
-                if K in results.shot_results:
-                    shot_data = results.shot_results[K]
+                if K in shot_results:
+                    shot_data = shot_results[K]
                     values.append(shot_data.get(metric, np.nan))
                     
                     # Add error bars if std available
@@ -155,7 +196,7 @@ class VisualizationReporter:
         return str(save_path)
     
     def create_performance_comparison_matrix(self,
-                                           results_dict: Dict[str, FewShotResults],
+                                           results_dict: Dict[str, Any],
                                            metric: str = "mean_l2_error",
                                            save_name: str = "performance_matrix") -> str:
         """
@@ -173,14 +214,22 @@ class VisualizationReporter:
         
         # Prepare data matrix
         models = list(results_dict.keys())
-        shots = sorted(results_dict[models[0]].shot_results.keys())
+        first_model = list(results_dict.values())[0]
+        
+        if hasattr(first_model, 'shot_results'):
+            shots = sorted(first_model.shot_results.keys())
+        else:
+            shots = sorted(first_model.keys())
         
         matrix_data = np.zeros((len(models), len(shots)))
         
         for i, model in enumerate(models):
+            results = results_dict[model]
+            shot_results = results.shot_results if hasattr(results, 'shot_results') else results
+            
             for j, K in enumerate(shots):
-                if K in results_dict[model].shot_results:
-                    matrix_data[i, j] = results_dict[model].shot_results[K].get(metric, np.nan)
+                if K in shot_results:
+                    matrix_data[i, j] = shot_results[K].get(metric, np.nan)
                 else:
                     matrix_data[i, j] = np.nan
         
@@ -229,7 +278,7 @@ class VisualizationReporter:
         return str(save_path)
     
     def plot_statistical_significance(self,
-                                    comparisons: Dict[str, StatisticalComparison],
+                                    comparisons: Dict[str, Any],
                                     save_name: str = "statistical_significance") -> str:
         """
         Visualize statistical significance results.
@@ -246,7 +295,9 @@ class VisualizationReporter:
         # Prepare data for plotting
         comparison_data = []
         for comp_name, comparison in comparisons.items():
-            for K, shot_comp in comparison.shot_comparisons.items():
+            shot_comparisons = comparison.shot_comparisons if hasattr(comparison, 'shot_comparisons') else comparison
+            
+            for K, shot_comp in shot_comparisons.items():
                 if 'paired_t_test' in shot_comp:
                     comparison_data.append({
                         'comparison': comp_name,
@@ -306,106 +357,9 @@ class VisualizationReporter:
         logger.info(f"Statistical significance plot saved: {save_path}")
         return str(save_path)
     
-    def plot_computational_tradeoffs(self,
-                                   computational_report: Dict[str, Any],
-                                   save_name: str = "computational_tradeoffs") -> str:
-        """
-        Visualize computational trade-off analysis.
-        
-        Args:
-            computational_report: Report from ComputationalAnalyzer
-            save_name: Filename for saving
-            
-        Returns:
-            Path to saved figure
-        """
-        logger.info("Plotting computational trade-offs")
-        
-        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 12))
-        
-        # Plot 1: Training times
-        if 'training_performance' in computational_report:
-            training_perf = computational_report['training_performance']
-            models = list(training_perf.keys())
-            training_times = [training_perf[m]['training_time_seconds'] for m in models]
-            
-            bars = ax1.bar(models, training_times)
-            ax1.set_ylabel('Training Time (seconds)')
-            ax1.set_title('Training Time Comparison')
-            ax1.tick_params(axis='x', rotation=45)
-            
-            # Color bars by time
-            max_time = max(training_times)
-            for bar, time in zip(bars, training_times):
-                bar.set_color(plt.cm.viridis(time / max_time))
-        
-        # Plot 2: Adaptation times
-        if 'adaptation_performance' in computational_report:
-            adapt_perf = computational_report['adaptation_performance']
-            models = list(adapt_perf.keys())
-            adapt_times = [adapt_perf[m]['mean_adaptation_time'] for m in models]
-            adapt_stds = [adapt_perf[m]['std_adaptation_time'] for m in models]
-            
-            ax2.bar(models, adapt_times, yerr=adapt_stds, capsize=5)
-            ax2.set_ylabel('Adaptation Time (seconds)')
-            ax2.set_title('Adaptation Time Comparison')
-            ax2.tick_params(axis='x', rotation=45)
-        
-        # Plot 3: Memory usage
-        if 'memory_analysis' in computational_report:
-            memory_analysis = computational_report['memory_analysis']
-            models = list(memory_analysis.keys())
-            
-            training_memory = [memory_analysis[m].get('training_memory_peak_mb', 0) for m in models]
-            adaptation_memory = [memory_analysis[m].get('adaptation_memory_avg_mb', 0) for m in models]
-            
-            x = np.arange(len(models))
-            width = 0.35
-            
-            ax3.bar(x - width/2, training_memory, width, label='Training', alpha=0.8)
-            ax3.bar(x + width/2, adaptation_memory, width, label='Adaptation', alpha=0.8)
-            
-            ax3.set_ylabel('Memory Usage (MB)')
-            ax3.set_title('Memory Usage Comparison')
-            ax3.set_xticks(x)
-            ax3.set_xticklabels(models, rotation=45)
-            ax3.legend()
-        
-        # Plot 4: Break-even analysis
-        if 'break_even_analysis' in computational_report:
-            break_even = computational_report['break_even_analysis']
-            
-            comparisons = list(break_even.keys())
-            break_even_tasks = [break_even[c].break_even_tasks for c in comparisons]
-            
-            # Filter out infinite values for plotting
-            finite_mask = np.isfinite(break_even_tasks)
-            if np.any(finite_mask):
-                filtered_comparisons = [c for c, finite in zip(comparisons, finite_mask) if finite]
-                filtered_tasks = [t for t, finite in zip(break_even_tasks, finite_mask) if finite]
-                
-                bars = ax4.bar(filtered_comparisons, filtered_tasks)
-                ax4.set_ylabel('Break-even Tasks')
-                ax4.set_title('Break-even Point Analysis')
-                ax4.tick_params(axis='x', rotation=45)
-                
-                # Add horizontal line at reasonable break-even threshold
-                ax4.axhline(y=50, color='red', linestyle='--', alpha=0.7, label='Practical threshold')
-                ax4.legend()
-        
-        plt.tight_layout()
-        
-        # Save figure
-        save_path = self.output_dir / f"{save_name}.{self.figure_format}"
-        plt.savefig(save_path, dpi=self.dpi, bbox_inches='tight')
-        plt.close()
-        
-        logger.info(f"Computational trade-offs plot saved: {save_path}")
-        return str(save_path)
-    
     def generate_automated_report(self,
-                                results_dict: Dict[str, FewShotResults],
-                                statistical_comparisons: Dict[str, StatisticalComparison] = None,
+                                results_dict: Dict[str, Any],
+                                statistical_comparisons: Dict[str, Any] = None,
                                 computational_report: Dict[str, Any] = None,
                                 report_title: str = "Meta-Learning Evaluation Report") -> str:
         """
@@ -445,12 +399,6 @@ class VisualizationReporter:
                 statistical_comparisons, 'statistical_significance'
             )
         
-        # Computational trade-offs
-        if computational_report:
-            figures['computational'] = self.plot_computational_tradeoffs(
-                computational_report, 'computational_analysis'
-            )
-        
         # Generate HTML report
         html_content = self._generate_html_report(
             report_title, results_dict, statistical_comparisons, 
@@ -467,8 +415,8 @@ class VisualizationReporter:
     
     def _generate_html_report(self,
                             title: str,
-                            results_dict: Dict[str, FewShotResults],
-                            statistical_comparisons: Dict[str, StatisticalComparison],
+                            results_dict: Dict[str, Any],
+                            statistical_comparisons: Dict[str, Any],
                             computational_report: Dict[str, Any],
                             figures: Dict[str, str]) -> str:
         """Generate HTML report content."""
@@ -499,7 +447,6 @@ class VisualizationReporter:
                 <p>This report presents a comprehensive evaluation of meta-learning approaches for few-shot adaptation in physics-informed neural networks (PINNs).</p>
                 <ul>
                     <li><strong>Models Evaluated:</strong> {len(results_dict)}</li>
-                    <li><strong>Evaluation Shots:</strong> {list(results_dict[list(results_dict.keys())[0]].shot_results.keys())}</li>
                     <li><strong>Statistical Comparisons:</strong> {len(statistical_comparisons) if statistical_comparisons else 0}</li>
                 </ul>
             </div>
@@ -535,32 +482,6 @@ class VisualizationReporter:
         # Results Table
         html += self._generate_results_table(results_dict)
         
-        # Statistical Analysis Section
-        if statistical_comparisons:
-            html += """
-                <h2>Statistical Analysis</h2>
-                <div class="figure">
-                    <h3>Statistical Significance</h3>
-            """
-            if 'statistical' in figures:
-                html += f'<img src="{os.path.basename(figures["statistical"])}" alt="Statistical Significance">'
-            
-            html += "</div>"
-            html += self._generate_statistical_table(statistical_comparisons)
-        
-        # Computational Analysis Section
-        if computational_report:
-            html += """
-                <h2>Computational Analysis</h2>
-                <div class="figure">
-                    <h3>Computational Trade-offs</h3>
-            """
-            if 'computational' in figures:
-                html += f'<img src="{os.path.basename(figures["computational"])}" alt="Computational Analysis">'
-            
-            html += "</div>"
-            html += self._generate_computational_table(computational_report)
-        
         html += """
             </body>
         </html>
@@ -568,7 +489,7 @@ class VisualizationReporter:
         
         return html
     
-    def _generate_results_table(self, results_dict: Dict[str, FewShotResults]) -> str:
+    def _generate_results_table(self, results_dict: Dict[str, Any]) -> str:
         """Generate HTML table for results."""
         html = """
             <h3>Detailed Results</h3>
@@ -586,83 +507,22 @@ class VisualizationReporter:
         for model_name, results in results_dict.items():
             html += f"<tr><td>{model_name}</td>"
             
+            shot_results = results.shot_results if hasattr(results, 'shot_results') else results
+            
             for K in [1, 5, 10, 25]:
-                if K in results.shot_results:
-                    error = results.shot_results[K].get('mean_l2_error', np.nan)
+                if K in shot_results:
+                    error = shot_results[K].get('mean_l2_error', np.nan)
                     html += f"<td>{error:.6f}</td>"
                 else:
                     html += "<td>N/A</td>"
             
             # Average success rate
-            success_rates = [results.shot_results[K].get('success_rate', 0) 
-                           for K in results.shot_results.keys()]
+            success_rates = [shot_results[K].get('success_rate', 0) 
+                           for K in shot_results.keys()]
             avg_success = np.mean(success_rates) if success_rates else 0
             html += f"<td>{avg_success:.3f}</td>"
             
             html += "</tr>"
-        
-        html += "</table>"
-        return html
-    
-    def _generate_statistical_table(self, comparisons: Dict[str, StatisticalComparison]) -> str:
-        """Generate HTML table for statistical comparisons."""
-        html = """
-            <h3>Statistical Comparisons</h3>
-            <table>
-                <tr>
-                    <th>Comparison</th>
-                    <th>K-shots</th>
-                    <th>P-value</th>
-                    <th>Significant</th>
-                    <th>Cohen's d</th>
-                    <th>Effect Size</th>
-                </tr>
-        """
-        
-        for comp_name, comparison in comparisons.items():
-            for K, shot_comp in comparison.shot_comparisons.items():
-                if 'paired_t_test' in shot_comp:
-                    html += f"""
-                        <tr>
-                            <td>{comp_name}</td>
-                            <td>{K}</td>
-                            <td>{shot_comp['paired_t_test']['p_value']:.6f}</td>
-                            <td>{'Yes' if shot_comp['paired_t_test']['significant'] else 'No'}</td>
-                            <td>{shot_comp['effect_size']['cohens_d']:.3f}</td>
-                            <td>{shot_comp['effect_size']['interpretation']}</td>
-                        </tr>
-                    """
-        
-        html += "</table>"
-        return html
-    
-    def _generate_computational_table(self, computational_report: Dict[str, Any]) -> str:
-        """Generate HTML table for computational analysis."""
-        html = """
-            <h3>Computational Performance</h3>
-            <table>
-                <tr>
-                    <th>Model</th>
-                    <th>Training Time (s)</th>
-                    <th>Adaptation Time (s)</th>
-                    <th>Memory Peak (MB)</th>
-                </tr>
-        """
-        
-        if 'training_performance' in computational_report:
-            training_perf = computational_report['training_performance']
-            adaptation_perf = computational_report.get('adaptation_performance', {})
-            memory_analysis = computational_report.get('memory_analysis', {})
-            
-            for model in training_perf.keys():
-                html += f"""
-                    <tr>
-                        <td>{model}</td>
-                        <td>{training_perf[model].get('training_time_seconds', 0):.2f}</td>
-                        <td>{adaptation_perf.get(model, {}).get('mean_adaptation_time', 0):.2f}</td>
-                        <td>{memory_analysis.get(model, {}).get('training_memory_peak_mb', 0):.1f}</td>
-                    </tr>
-                """
         
         html += "</table>"
         return html
@@ -679,14 +539,12 @@ class VisualizationReporter:
         return label_map.get(metric, metric.replace('_', ' ').title())
     
     def create_publication_ready_figures(self, 
-                                       results_dict: Dict[str, FewShotResults],
-                                       statistical_comparisons: Dict[str, StatisticalComparison] = None) -> List[str]:
+                                       results_dict: Dict[str, Any]) -> List[str]:
         """
         Create publication-ready figure generation using existing plot callbacks.
         
         Args:
             results_dict: Model evaluation results
-            statistical_comparisons: Statistical comparison results
             
         Returns:
             List of paths to generated figures
@@ -714,17 +572,116 @@ class VisualizationReporter:
             )
             figures.append(fig_path)
             
-            # Statistical significance if available
-            if statistical_comparisons:
-                fig_path = self.plot_statistical_significance(
-                    statistical_comparisons, 'publication_statistics'
-                )
-                figures.append(fig_path)
+        finally:
+            # Restore original style
+            self.style = original_style
+            self._configure_matplotlib()
+        
+        logger.info(f"Generated {len(figures)} publication-ready figures")
+        return figures
+    
+    def generate_paper_figures(self, 
+                             results_dict: Dict[str, Any],
+                             save_prefix: str = "paper_fig") -> Dict[str, str]:
+        """
+        Generate specific figures for paper publication.
+        
+        Args:
+            results_dict: Model evaluation results
+            save_prefix: Prefix for saved figure names
+            
+        Returns:
+            Dictionary mapping figure names to file paths
+        """
+        logger.info("Generating paper figures")
+        
+        # Set publication style
+        original_style = self.style
+        self.style = "publication"
+        self._configure_matplotlib()
+        
+        figures = {}
+        
+        try:
+            # Figure 1: Main performance comparison
+            figures['main_performance'] = self.plot_few_shot_performance_curves(
+                results_dict, 'mean_l2_error',
+                'Few-Shot Learning Performance Comparison',
+                f'{save_prefix}_main_performance'
+            )
+            
+            # Figure 2: Adaptation time comparison
+            figures['adaptation_time'] = self.plot_few_shot_performance_curves(
+                results_dict, 'mean_adaptation_time',
+                'Adaptation Time Comparison',
+                f'{save_prefix}_adaptation_time'
+            )
+            
+            # Figure 3: Performance matrix heatmap
+            figures['performance_matrix'] = self.create_performance_comparison_matrix(
+                results_dict, 'mean_l2_error',
+                f'{save_prefix}_performance_matrix'
+            )
             
         finally:
             # Restore original style
             self.style = original_style
             self._configure_matplotlib()
         
-        logger.info(f"Created {len(figures)} publication-ready figures")
+        logger.info(f"Generated {len(figures)} paper figures")
         return figures
+    
+    def plot_convergence_analysis(self,
+                                convergence_data: Dict[str, Any],
+                                save_name: str = "convergence_analysis") -> str:
+        """
+        Plot convergence analysis for different methods.
+        
+        Args:
+            convergence_data: Convergence data for different methods
+            save_name: Filename for saving
+            
+        Returns:
+            Path to saved figure
+        """
+        logger.info("Plotting convergence analysis")
+        
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+        
+        # Plot 1: Loss convergence
+        for method_name, data in convergence_data.items():
+            if 'loss_history' in data:
+                iterations = range(len(data['loss_history']))
+                ax1.plot(iterations, data['loss_history'], 
+                        label=method_name, linewidth=2)
+        
+        ax1.set_xlabel('Iteration')
+        ax1.set_ylabel('Loss')
+        ax1.set_title('Training Loss Convergence')
+        ax1.set_yscale('log')
+        ax1.legend()
+        ax1.grid(True, alpha=0.3)
+        
+        # Plot 2: Validation error convergence
+        for method_name, data in convergence_data.items():
+            if 'validation_error' in data:
+                iterations = range(len(data['validation_error']))
+                ax2.plot(iterations, data['validation_error'], 
+                        label=method_name, linewidth=2)
+        
+        ax2.set_xlabel('Iteration')
+        ax2.set_ylabel('Validation Error')
+        ax2.set_title('Validation Error Convergence')
+        ax2.set_yscale('log')
+        ax2.legend()
+        ax2.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        
+        # Save figure
+        save_path = self.output_dir / f"{save_name}.{self.figure_format}"
+        plt.savefig(save_path, dpi=self.dpi, bbox_inches='tight')
+        plt.close()
+        
+        logger.info(f"Convergence analysis plot saved: {save_path}")
+        return str(save_path)
